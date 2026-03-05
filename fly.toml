@@ -1,4 +1,4 @@
-app = "atlas-backend"
+app = "app-ancient-smoke-7925"
 primary_region = "iad"
 
 [build]
