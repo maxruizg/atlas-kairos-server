@@ -1,31 +1,23 @@
-app = "app-ancient-smoke-7925"
-primary_region = "iad"
+# fly.toml app configuration file generated for app-falling-firefly-3167 on 2026-03-05T20:13:32Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'app-falling-firefly-3167'
+primary_region = 'iad'
 
 [build]
-
-[env]
-  RUST_LOG = "info"
-  HOST = "0.0.0.0"
-  PORT = "8080"
 
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = "stop"
+  auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
-
-[[http_service.checks]]
-  grace_period = "10s"
-  interval = "30s"
-  method = "GET"
-  path = "/api/v1/health"
-  timeout = "5s"
-
-[mounts]
-  source = "uploads_data"
-  destination = "/app/uploads"
+  processes = ['app']
 
 [[vm]]
-  size = "shared-cpu-1x"
-  memory = "512mb"
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1
+  memory_mb = 256
