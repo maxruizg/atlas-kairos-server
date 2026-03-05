@@ -1,0 +1,11 @@
+/Users/maxruizg/Workspace/Personal/Atlas/backend/target/debug/deps/serde_plain-b1aa183b7d1d6e83.d: /Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_plain-1.0.2/src/lib.rs /Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_plain-1.0.2/src/de.rs /Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_plain-1.0.2/src/error.rs /Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_plain-1.0.2/src/macros.rs /Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_plain-1.0.2/src/ser.rs
+
+/Users/maxruizg/Workspace/Personal/Atlas/backend/target/debug/deps/libserde_plain-b1aa183b7d1d6e83.rlib: /Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_plain-1.0.2/src/lib.rs /Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_plain-1.0.2/src/de.rs /Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_plain-1.0.2/src/error.rs /Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_plain-1.0.2/src/macros.rs /Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_plain-1.0.2/src/ser.rs
+
+/Users/maxruizg/Workspace/Personal/Atlas/backend/target/debug/deps/libserde_plain-b1aa183b7d1d6e83.rmeta: /Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_plain-1.0.2/src/lib.rs /Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_plain-1.0.2/src/de.rs /Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_plain-1.0.2/src/error.rs /Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_plain-1.0.2/src/macros.rs /Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_plain-1.0.2/src/ser.rs
+
+/Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_plain-1.0.2/src/lib.rs:
+/Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_plain-1.0.2/src/de.rs:
+/Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_plain-1.0.2/src/error.rs:
+/Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_plain-1.0.2/src/macros.rs:
+/Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_plain-1.0.2/src/ser.rs:

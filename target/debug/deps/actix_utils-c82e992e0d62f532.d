@@ -1,0 +1,10 @@
+/Users/maxruizg/Workspace/Personal/Atlas/backend/target/debug/deps/actix_utils-c82e992e0d62f532.d: /Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/actix-utils-3.0.1/src/lib.rs /Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/actix-utils-3.0.1/src/counter.rs /Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/actix-utils-3.0.1/src/future/mod.rs /Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/actix-utils-3.0.1/src/future/either.rs /Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/actix-utils-3.0.1/src/future/poll_fn.rs /Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/actix-utils-3.0.1/src/future/ready.rs
+
+/Users/maxruizg/Workspace/Personal/Atlas/backend/target/debug/deps/libactix_utils-c82e992e0d62f532.rmeta: /Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/actix-utils-3.0.1/src/lib.rs /Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/actix-utils-3.0.1/src/counter.rs /Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/actix-utils-3.0.1/src/future/mod.rs /Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/actix-utils-3.0.1/src/future/either.rs /Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/actix-utils-3.0.1/src/future/poll_fn.rs /Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/actix-utils-3.0.1/src/future/ready.rs
+
+/Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/actix-utils-3.0.1/src/lib.rs:
+/Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/actix-utils-3.0.1/src/counter.rs:
+/Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/actix-utils-3.0.1/src/future/mod.rs:
+/Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/actix-utils-3.0.1/src/future/either.rs:
+/Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/actix-utils-3.0.1/src/future/poll_fn.rs:
+/Users/maxruizg/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/actix-utils-3.0.1/src/future/ready.rs:
