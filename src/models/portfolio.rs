@@ -45,15 +45,27 @@ pub struct Fund {
     pub gross_moic: f64,
     pub net_moic: f64,
     pub pct_called: f64,
+    pub latest_report_q: String,
+    pub report_received: bool,
+    pub transactions: Vec<Transaction>,
     pub companies: Vec<PortfolioCompany>,
     pub nav_history: Vec<NavPoint>,
     pub cashflows: Vec<CashflowPoint>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Transaction {
+    pub date: String,
+    pub tx_type: String,
+    pub amount: f64,
+    pub note: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PortfolioCompany {
     pub name: String,
     pub theme: String,
+    pub stage: Option<String>,
     pub date: String,
     pub status: String,
     pub invested: f64,

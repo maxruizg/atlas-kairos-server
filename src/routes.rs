@@ -1,6 +1,7 @@
 use actix_web::web;
 
 use crate::handlers::{
+    auth::{login, logout, signup},
     copilot::{get_history, get_suggestions, post_query},
     documents::{list_documents, update_document_status, upload_document},
     health::health_check,
@@ -39,6 +40,10 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .service(get_sponsors)
             .service(get_sponsor_by_id)
             .service(get_funds)
-            .service(get_fund_by_id),
+            .service(get_fund_by_id)
+            // Auth
+            .service(login)
+            .service(signup)
+            .service(logout),
     );
 }

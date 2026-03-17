@@ -19,7 +19,7 @@ pub fn seed_documents() -> Vec<Document> {
         Document {
             id: "doc-002".to_string(),
             name: "LatAm_Infra_CapCall_Nov25.pdf".to_string(),
-            doc_type: "Capital Call Notice".to_string(),
+            doc_type: "Financial Statement".to_string(),
             fund: "Infrastructure Partners IV".to_string(),
             status: "Approved".to_string(),
             confidence: Some(98),
@@ -33,7 +33,7 @@ pub fn seed_documents() -> Vec<Document> {
         Document {
             id: "doc-003".to_string(),
             name: "TechBridge_Distribution_Q3.pdf".to_string(),
-            doc_type: "Distribution Notice".to_string(),
+            doc_type: "Annual Report".to_string(),
             fund: "TechBridge Direct Co-invest".to_string(),
             status: "Approved".to_string(),
             confidence: Some(97),
@@ -61,7 +61,7 @@ pub fn seed_documents() -> Vec<Document> {
         Document {
             id: "doc-005".to_string(),
             name: "HealthCo_CapCall_Oct25.pdf".to_string(),
-            doc_type: "Capital Call Notice".to_string(),
+            doc_type: "Financial Statement".to_string(),
             fund: "HealthCo Ventures I".to_string(),
             status: "Uploaded".to_string(),
             confidence: None,
