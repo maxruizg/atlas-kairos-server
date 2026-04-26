@@ -154,7 +154,11 @@ pub static THEMES: LazyLock<Vec<Theme>> = LazyLock::new(|| {
 // Phase 1 — Entities, Sponsors, Funds
 // ---------------------------------------------------------------------------
 
-pub static ENTITIES: LazyLock<Vec<Entity>> = LazyLock::new(|| {
+/// Seed the canonical list of legal entities held by the family office.
+///
+/// Entities are mutable at runtime — see [`crate::state::AppState::entities`]
+/// — so this is a function rather than a `LazyLock`.
+pub fn seed_entities() -> Vec<Entity> {
     vec![
         Entity {
             id: "e1".into(),
@@ -175,7 +179,7 @@ pub static ENTITIES: LazyLock<Vec<Entity>> = LazyLock::new(|| {
             nav: 8_800_000.0,
         },
     ]
-});
+}
 
 pub static SPONSORS: LazyLock<Vec<Sponsor>> = LazyLock::new(|| {
     vec![

@@ -1,9 +1,10 @@
 use actix_web::{get, web, HttpResponse};
 use serde::{Deserialize, Serialize};
 
-use crate::data::portfolio::{ENTITIES, FUNDS, SPONSORS};
+use crate::data::portfolio::{FUNDS, SPONSORS};
 use crate::errors::AppError;
 use crate::models::portfolio::{Fund, Sponsor};
+use crate::state::AppState;
 
 // ---------------------------------------------------------------------------
 // Response types
@@ -101,12 +102,19 @@ fn aggregate(sponsor: &Sponsor, funds: &[&Fund]) -> SponsorWithMetrics {
 
 /// `GET /api/v1/entities`
 ///
-/// Returns all legal entities in the portfolio.
+/// Returns all legal entities in the portfolio.  Reads from the mutable
+/// [`AppState::entities`] so newly-created entities show up here as well.
 #[get("/entities")]
-pub async fn get_entities() -> Result<HttpResponse, AppError> {
+pub async fn get_entities(
+    state: web::Data<AppState>,
+) -> Result<HttpResponse, AppError> {
+    let entities = state.entities.read().await.clone();
     Ok(HttpResponse::Ok()
-        .insert_header(("Cache-Control", "public, max-age=60, stale-while-revalidate=300"))
-        .json(&*ENTITIES))
+        // Keep cache short — entities are now mutable, but `revalidator`
+        // on the client invalidates explicitly so the staleness window is
+        // bounded and acceptable.
+        .insert_header(("Cache-Control", "public, max-age=10, stale-while-revalidate=30"))
+        .json(entities))
 }
 
 /// `GET /api/v1/sponsors?entity={id}`

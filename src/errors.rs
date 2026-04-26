@@ -23,6 +23,9 @@ pub enum AppError {
     NotFound(String),
     /// 400 — the request is syntactically or semantically invalid.
     BadRequest(String),
+    /// 409 — the request conflicts with the current state of the resource
+    /// (e.g. attempting to delete an entity that still has funds attached).
+    Conflict(String),
     /// 500 — an unexpected internal failure occurred.
     Internal(String),
 }
@@ -32,6 +35,7 @@ impl fmt::Display for AppError {
         match self {
             AppError::NotFound(msg) => write!(f, "{}", msg),
             AppError::BadRequest(msg) => write!(f, "{}", msg),
+            AppError::Conflict(msg) => write!(f, "{}", msg),
             AppError::Internal(msg) => write!(f, "{}", msg),
         }
     }
@@ -46,6 +50,7 @@ impl ResponseError for AppError {
         match self {
             AppError::NotFound(_) => HttpResponse::NotFound().json(body),
             AppError::BadRequest(_) => HttpResponse::BadRequest().json(body),
+            AppError::Conflict(_) => HttpResponse::Conflict().json(body),
             // Never surface internal details — log them at the call site
             // and return a generic message to the client.
             AppError::Internal(_) => {

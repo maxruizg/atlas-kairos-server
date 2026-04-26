@@ -4,6 +4,7 @@ use crate::handlers::{
     auth::{login, logout, signup},
     copilot::{get_history, get_suggestions, post_query},
     documents::{list_documents, update_document_status, upload_document},
+    entities::{create_entity, delete_entity},
     health::health_check,
     portfolio::{get_investments, get_kpis, get_themes},
     review::{action_review_field, get_review_document},
@@ -37,6 +38,8 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .service(post_query)
             // Phase 1 — Entities, Sponsors, Funds
             .service(get_entities)
+            .service(create_entity)
+            .service(delete_entity)
             .service(get_sponsors)
             .service(get_sponsor_by_id)
             .service(get_funds)

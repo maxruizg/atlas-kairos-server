@@ -1,9 +1,10 @@
 use tokio::sync::RwLock;
 
-use crate::data::{copilot, documents, review};
+use crate::data::{copilot, documents, portfolio, review};
 use crate::models::{
     copilot::CopilotMessage,
     document::Document,
+    portfolio::Entity,
     review::ReviewDocument,
 };
 
@@ -17,6 +18,7 @@ pub struct AppState {
     pub documents: RwLock<Vec<Document>>,
     pub review: RwLock<ReviewDocument>,
     pub copilot_history: RwLock<Vec<CopilotMessage>>,
+    pub entities: RwLock<Vec<Entity>>,
 }
 
 impl AppState {
@@ -26,6 +28,7 @@ impl AppState {
             documents: RwLock::new(documents::seed_documents()),
             review: RwLock::new(review::seed_review()),
             copilot_history: RwLock::new(copilot::seed_history()),
+            entities: RwLock::new(portfolio::seed_entities()),
         }
     }
 }
