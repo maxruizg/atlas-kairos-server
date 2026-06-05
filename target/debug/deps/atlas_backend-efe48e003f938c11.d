@@ -1,0 +1,35 @@
+/Users/maxruizg/Workspace/Personal/Atlas/backend/target/debug/deps/atlas_backend-efe48e003f938c11.d: src/main.rs src/config.rs src/data/mod.rs src/data/copilot.rs src/data/documents.rs src/data/portfolio.rs src/data/review.rs src/db.rs src/errors.rs src/handlers/mod.rs src/handlers/auth.rs src/handlers/copilot.rs src/handlers/documents.rs src/handlers/entities.rs src/handlers/funds.rs src/handlers/health.rs src/handlers/organization.rs src/handlers/portfolio.rs src/handlers/review.rs src/handlers/sponsors.rs src/middleware/mod.rs src/middleware/security_headers.rs src/models/mod.rs src/models/auth.rs src/models/copilot.rs src/models/document.rs src/models/portfolio.rs src/models/review.rs src/models/user.rs src/routes.rs src/state.rs
+
+/Users/maxruizg/Workspace/Personal/Atlas/backend/target/debug/deps/atlas_backend-efe48e003f938c11: src/main.rs src/config.rs src/data/mod.rs src/data/copilot.rs src/data/documents.rs src/data/portfolio.rs src/data/review.rs src/db.rs src/errors.rs src/handlers/mod.rs src/handlers/auth.rs src/handlers/copilot.rs src/handlers/documents.rs src/handlers/entities.rs src/handlers/funds.rs src/handlers/health.rs src/handlers/organization.rs src/handlers/portfolio.rs src/handlers/review.rs src/handlers/sponsors.rs src/middleware/mod.rs src/middleware/security_headers.rs src/models/mod.rs src/models/auth.rs src/models/copilot.rs src/models/document.rs src/models/portfolio.rs src/models/review.rs src/models/user.rs src/routes.rs src/state.rs
+
+src/main.rs:
+src/config.rs:
+src/data/mod.rs:
+src/data/copilot.rs:
+src/data/documents.rs:
+src/data/portfolio.rs:
+src/data/review.rs:
+src/db.rs:
+src/errors.rs:
+src/handlers/mod.rs:
+src/handlers/auth.rs:
+src/handlers/copilot.rs:
+src/handlers/documents.rs:
+src/handlers/entities.rs:
+src/handlers/funds.rs:
+src/handlers/health.rs:
+src/handlers/organization.rs:
+src/handlers/portfolio.rs:
+src/handlers/review.rs:
+src/handlers/sponsors.rs:
+src/middleware/mod.rs:
+src/middleware/security_headers.rs:
+src/models/mod.rs:
+src/models/auth.rs:
+src/models/copilot.rs:
+src/models/document.rs:
+src/models/portfolio.rs:
+src/models/review.rs:
+src/models/user.rs:
+src/routes.rs:
+src/state.rs:

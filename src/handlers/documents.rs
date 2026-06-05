@@ -1,14 +1,14 @@
 use actix_multipart::Multipart;
-use actix_web::{get, patch, post, web, HttpResponse};
+use actix_web::{get, patch, post, web, HttpRequest, HttpResponse};
 use futures_util::StreamExt;
 use serde::Deserialize;
 use std::path::Path;
 
 use crate::errors::AppError;
+use crate::handlers::auth::current_user;
 use crate::models::document::{Document, UpdateStatusRequest};
 use crate::state::AppState;
 
-/// The exhaustive set of document statuses the system recognises.
 const VALID_STATUSES: &[&str] = &[
     "Uploaded",
     "Extracted",
@@ -17,57 +17,50 @@ const VALID_STATUSES: &[&str] = &[
     "Posted",
 ];
 
-/// Query parameters accepted by the documents list endpoint.
 #[derive(Debug, Deserialize)]
 pub struct DocumentFilter {
-    /// Optional exact-match status filter (case-sensitive, matches
-    /// the status values stored on the document).
     pub status: Option<String>,
 }
 
 /// `GET /api/v1/documents?status=`
-///
-/// Returns all documents, or a filtered subset when `status` is provided.
 #[get("/documents")]
 pub async fn list_documents(
+    req: HttpRequest,
     query: web::Query<DocumentFilter>,
     state: web::Data<AppState>,
 ) -> Result<HttpResponse, AppError> {
-    let docs = state.documents.read().await;
+    let user = current_user(&req, &state.db).await?;
 
-    let result: Vec<_> = match &query.status {
-        Some(status_filter) => docs
-            .iter()
-            .filter(|d| &d.status == status_filter)
-            .collect(),
-        None => docs.iter().collect(),
-    };
+    let mut filter = format!("organization_id=eq.{}", user.organization_id);
+    if let Some(status) = query.status.as_deref() {
+        if !status.is_empty() {
+            filter.push_str(&format!("&status=eq.{status}"));
+        }
+    }
+    filter.push_str("&order=created_at.desc");
 
+    let docs: Vec<Document> = state.db.select("documents", &filter).await?;
     Ok(HttpResponse::Ok()
-        .insert_header(("Cache-Control", "public, max-age=60, stale-while-revalidate=300"))
-        .json(result))
+        .insert_header(("Cache-Control", "no-store"))
+        .json(docs))
+}
+
+#[derive(serde::Serialize)]
+struct StatusPatch<'a> {
+    status: &'a str,
 }
 
 /// `PATCH /api/v1/documents/{id}/status`
-///
-/// Updates the status of a single document.
-///
-/// # Validation
-/// - The document must exist (404 otherwise).
-/// - `status` must be one of the five recognised values (400 otherwise).
-///
-/// # Security note
-/// We validate the incoming status against an allowlist so that
-/// arbitrary strings cannot be stored and later reflected to other users.
 #[patch("/documents/{id}/status")]
 pub async fn update_document_status(
+    req: HttpRequest,
     path: web::Path<String>,
     body: web::Json<UpdateStatusRequest>,
     state: web::Data<AppState>,
 ) -> Result<HttpResponse, AppError> {
+    let user = current_user(&req, &state.db).await?;
     let doc_id = path.into_inner();
 
-    // Validate the new status value against the allowlist.
     if !VALID_STATUSES.contains(&body.status.as_str()) {
         return Err(AppError::BadRequest(format!(
             "Invalid status '{}'. Must be one of: {}",
@@ -76,25 +69,24 @@ pub async fn update_document_status(
         )));
     }
 
-    let mut docs = state.documents.write().await;
+    let updated: Document = state
+        .db
+        .update(
+            "documents",
+            &format!("id=eq.{doc_id}&organization_id=eq.{}", user.organization_id),
+            &StatusPatch {
+                status: &body.status,
+            },
+        )
+        .await?;
 
-    let doc = docs
-        .iter_mut()
-        .find(|d| d.id == doc_id)
-        .ok_or_else(|| AppError::NotFound(format!("Document '{}' not found.", doc_id)))?;
-
-    doc.status = body.status.clone();
-
-    Ok(HttpResponse::Ok().json(&*doc))
+    Ok(HttpResponse::Ok().json(updated))
 }
 
 /// Maximum file size: 50 MiB.
 const MAX_FILE_SIZE: usize = 50 * 1024 * 1024;
-
-/// Allowed file extensions for upload.
 const ALLOWED_EXTENSIONS: &[&str] = &["pdf", "xlsx"];
 
-/// Format a byte count as a human-readable string (e.g. "1.2 MB").
 fn format_file_size(bytes: usize) -> String {
     if bytes < 1024 {
         format!("{} B", bytes)
@@ -107,17 +99,17 @@ fn format_file_size(bytes: usize) -> String {
 
 /// `POST /api/v1/documents/upload`
 ///
-/// Accepts a multipart form with:
-/// - `file`: binary file (.pdf or .xlsx, ≤ 50 MB)
-/// - `doc_type`: document type string
-/// - `fund`: fund name string
-///
-/// Saves the file to `uploads/` and creates a new Document record.
+/// File bytes still go to the local `uploads/` directory.  The metadata
+/// row is persisted to Supabase (storage of the bytes themselves in
+/// Supabase Storage is a follow-up commit).
 #[post("/documents/upload")]
 pub async fn upload_document(
+    req: HttpRequest,
     mut payload: Multipart,
     state: web::Data<AppState>,
 ) -> Result<HttpResponse, AppError> {
+    let user = current_user(&req, &state.db).await?;
+
     let mut file_data: Option<(String, Vec<u8>)> = None;
     let mut doc_type: Option<String> = None;
     let mut fund: Option<String> = None;
@@ -187,9 +179,7 @@ pub async fn upload_document(
                 }
                 fund = Some(s);
             }
-            _ => {
-                // Skip unknown fields.
-            }
+            _ => {}
         }
     }
 
@@ -199,7 +189,6 @@ pub async fn upload_document(
         doc_type.ok_or_else(|| AppError::BadRequest("Missing 'doc_type' field".to_string()))?;
     let fund = fund.ok_or_else(|| AppError::BadRequest("Missing 'fund' field".to_string()))?;
 
-    // Validate extension.
     let ext = Path::new(&filename)
         .extension()
         .and_then(|e| e.to_str())
@@ -213,7 +202,6 @@ pub async fn upload_document(
         )));
     }
 
-    // Save file to disk.
     let file_id = uuid::Uuid::new_v4().to_string();
     let stored_name = format!("{file_id}.{ext}");
     let upload_path = Path::new("uploads").join(&stored_name);
@@ -227,6 +215,7 @@ pub async fn upload_document(
 
     let document = Document {
         id: file_id,
+        organization_id: user.organization_id.clone(),
         name: filename,
         doc_type,
         fund,
@@ -236,14 +225,10 @@ pub async fn upload_document(
         size: size_str,
         fields: 0,
         extracted: 0,
-        // Newly uploaded documents are not yet linked to a sponsor or fund;
-        // association happens during the classification/review workflow.
         sponsor_id: None,
         fund_id: None,
     };
 
-    let mut docs = state.documents.write().await;
-    docs.push(document.clone());
-
-    Ok(HttpResponse::Created().json(document))
+    let inserted: Document = state.db.insert("documents", &document).await?;
+    Ok(HttpResponse::Created().json(inserted))
 }

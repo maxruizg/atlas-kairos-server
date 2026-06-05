@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 mod config;
 mod data;
+mod db;
 mod errors;
 mod handlers;
 mod middleware;
@@ -13,6 +14,7 @@ mod routes;
 mod state;
 
 use config::Config;
+use db::Db;
 use middleware::security_headers::SecurityHeaders;
 use state::AppState;
 
@@ -38,9 +40,29 @@ async fn main() -> std::io::Result<()> {
         cfg.frontend_url
     );
 
+    // Build the Supabase client.  Fail-fast with a clear message if either
+    // SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing — without those
+    // the backend can't persist anything.
+    let db = match Db::from_env() {
+        Ok(db) => {
+            log::info!("Supabase storage initialised");
+            db
+        }
+        Err(msg) => {
+            log::error!(
+                "Failed to initialise Supabase storage: {msg}\n\
+                 Fix your backend/.env and restart."
+            );
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                msg,
+            ));
+        }
+    };
+
     // Shared application state — wrapped in Arc so cloning for each worker
     // is cheap (clones the pointer, not the data).
-    let app_state = Arc::new(AppState::new());
+    let app_state = Arc::new(AppState::new(db));
 
     // Rate-limiter: allow a burst of 30 requests, then replenish at 2/s.
     // This translates to 120 req/min sustained with a short-burst allowance.
@@ -64,7 +86,9 @@ async fn main() -> std::io::Result<()> {
             .allowed_methods(vec![
                 Method::GET,
                 Method::POST,
+                Method::PUT,
                 Method::PATCH,
+                Method::DELETE,
                 Method::OPTIONS,
             ])
             .allowed_header(actix_web::http::header::CONTENT_TYPE)

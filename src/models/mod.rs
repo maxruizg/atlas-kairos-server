@@ -3,3 +3,4 @@ pub mod copilot;
 pub mod document;
 pub mod portfolio;
 pub mod review;
+pub mod user;

@@ -17,3 +17,12 @@ env_logger = "0.11"
 log = "0.4"
 dotenvy = "0.15"
 futures-util = "0.3"
+# Password hashing — Argon2id (OWASP-recommended for password storage).
+# `password-hash` provides the PHC string format used to store hashes.
+argon2 = "0.5"
+password-hash = { version = "0.5", features = ["alloc"] }
+rand_core = { version = "0.6", features = ["std"] }
+# Supabase storage layer — talks PostgREST over HTTPS using the
+# service_role key.  rustls (not openssl) so the build stays
+# self-contained on macOS without Homebrew openssl headers.
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }

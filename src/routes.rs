@@ -1,14 +1,19 @@
 use actix_web::web;
 
 use crate::handlers::{
-    auth::{login, logout, signup},
+    auth::{login, logout, me, signup},
     copilot::{get_history, get_suggestions, post_query},
     documents::{list_documents, update_document_status, upload_document},
-    entities::{create_entity, delete_entity},
+    entities::{create_entity, delete_entity, update_entity},
+    funds::{create_company, create_fund, delete_company, delete_fund, update_fund_entity},
     health::health_check,
+    organization::{get_organization, update_organization},
     portfolio::{get_investments, get_kpis, get_themes},
     review::{action_review_field, get_review_document},
-    sponsors::{get_entities, get_fund_by_id, get_funds, get_sponsor_by_id, get_sponsors},
+    sponsors::{
+        create_sponsor, delete_sponsor, get_entities, get_fund_by_id, get_funds,
+        get_sponsor_by_id, get_sponsors,
+    },
 };
 
 /// Register all application routes under the `/api/v1` scope.
@@ -39,14 +44,26 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             // Phase 1 — Entities, Sponsors, Funds
             .service(get_entities)
             .service(create_entity)
+            .service(update_entity)
             .service(delete_entity)
             .service(get_sponsors)
+            .service(create_sponsor)
+            .service(delete_sponsor)
             .service(get_sponsor_by_id)
             .service(get_funds)
+            .service(create_fund)
+            .service(delete_fund)
+            .service(update_fund_entity)
+            .service(create_company)
+            .service(delete_company)
             .service(get_fund_by_id)
+            // Organization (tenant settings + onboarding flag)
+            .service(get_organization)
+            .service(update_organization)
             // Auth
             .service(login)
             .service(signup)
-            .service(logout),
+            .service(logout)
+            .service(me),
     );
 }

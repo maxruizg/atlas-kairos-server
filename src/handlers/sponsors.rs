@@ -1,8 +1,8 @@
-use actix_web::{get, web, HttpResponse};
+use actix_web::{delete, get, post, web, HttpRequest, HttpResponse};
 use serde::{Deserialize, Serialize};
 
-use crate::data::portfolio::{FUNDS, SPONSORS};
 use crate::errors::AppError;
+use crate::handlers::auth::current_user;
 use crate::models::portfolio::{Fund, Sponsor};
 use crate::state::AppState;
 
@@ -11,62 +11,63 @@ use crate::state::AppState;
 // ---------------------------------------------------------------------------
 
 /// A sponsor decorated with aggregated portfolio metrics.
-///
-/// The `#[serde(flatten)]` on `sponsor` emits all sponsor fields at the top
-/// level so the client receives a single flat object rather than a nested one.
 #[derive(Debug, Serialize)]
 pub struct SponsorWithMetrics {
     #[serde(flatten)]
     pub sponsor: Sponsor,
-    /// Number of funds belonging to this sponsor (within the requested entity
-    /// filter, if any).
     pub fund_count: usize,
-    /// Sum of NAV across all qualifying funds.
     pub total_nav: f64,
-    /// Sum of commitment across all qualifying funds.
     pub total_commitment: f64,
-    /// Paid-in-weighted average TVPI across qualifying funds.
     pub tvpi: f64,
-    /// Paid-in-weighted average net IRR across qualifying funds.
     pub net_irr: f64,
-    /// Deduplicated list of asset classes across qualifying funds.
     pub asset_classes: Vec<String>,
-    /// Total number of portfolio companies across qualifying funds.
     pub company_count: usize,
 }
 
 // ---------------------------------------------------------------------------
-// Query parameter structs
+// Query parameter & body structs
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Deserialize)]
 pub struct SponsorFilter {
-    /// Optional entity ID to restrict results to sponsors that have at least
-    /// one fund associated with that entity.
     pub entity: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct FundFilter {
-    /// Filter funds by entity ID.
     pub entity: Option<String>,
-    /// Filter funds by sponsor ID.
     pub sponsor: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct CreateSponsorPayload {
+    pub name: String,
+    pub initials: String,
+    pub country: String,
+    pub color: String,
+}
+
+/// PostgREST insert payload for a sponsor — server controls id + org.
+#[derive(Serialize)]
+struct NewSponsor<'a> {
+    id: &'a str,
+    organization_id: &'a str,
+    name: &'a str,
+    initials: &'a str,
+    country: &'a str,
+    color: &'a str,
+}
+
 // ---------------------------------------------------------------------------
-// Aggregation helpers
+// Aggregation helper
 // ---------------------------------------------------------------------------
 
-/// Build a [`SponsorWithMetrics`] for a given sponsor from a pre-filtered
-/// slice of that sponsor's funds.
 fn aggregate(sponsor: &Sponsor, funds: &[&Fund]) -> SponsorWithMetrics {
     let fund_count = funds.len();
     let total_nav: f64 = funds.iter().map(|f| f.nav).sum();
     let total_commitment: f64 = funds.iter().map(|f| f.commitment).sum();
     let company_count: usize = funds.iter().map(|f| f.companies.len()).sum();
 
-    // Paid-in-weighted average TVPI and net IRR.
     let total_paid_in: f64 = funds.iter().map(|f| f.paid_in).sum();
     let (tvpi, net_irr) = if total_paid_in > 0.0 {
         let w_tvpi: f64 = funds.iter().map(|f| f.tvpi * f.paid_in).sum();
@@ -76,7 +77,6 @@ fn aggregate(sponsor: &Sponsor, funds: &[&Fund]) -> SponsorWithMetrics {
         (0.0, 0.0)
     };
 
-    // Deduplicate asset classes while preserving first-seen order.
     let mut asset_classes: Vec<String> = Vec::new();
     for f in funds {
         if !asset_classes.contains(&f.asset_class) {
@@ -97,127 +97,275 @@ fn aggregate(sponsor: &Sponsor, funds: &[&Fund]) -> SponsorWithMetrics {
 }
 
 // ---------------------------------------------------------------------------
-// Handlers
+// Read handlers
 // ---------------------------------------------------------------------------
 
 /// `GET /api/v1/entities`
 ///
-/// Returns all legal entities in the portfolio.  Reads from the mutable
-/// [`AppState::entities`] so newly-created entities show up here as well.
+/// Returns every entity in the requesting user's organization.
 #[get("/entities")]
 pub async fn get_entities(
+    req: HttpRequest,
     state: web::Data<AppState>,
 ) -> Result<HttpResponse, AppError> {
-    let entities = state.entities.read().await.clone();
+    let user = current_user(&req, &state.db).await?;
+    let entities: Vec<crate::models::portfolio::Entity> = state
+        .db
+        .select(
+            "entities",
+            &format!("organization_id=eq.{}&order=created_at.asc", user.organization_id),
+        )
+        .await?;
+
     Ok(HttpResponse::Ok()
-        // Keep cache short — entities are now mutable, but `revalidator`
-        // on the client invalidates explicitly so the staleness window is
-        // bounded and acceptable.
-        .insert_header(("Cache-Control", "public, max-age=10, stale-while-revalidate=30"))
+        .insert_header(("Cache-Control", "no-store"))
         .json(entities))
 }
 
 /// `GET /api/v1/sponsors?entity={id}`
-///
-/// Returns all sponsors with aggregated portfolio metrics.  When `entity` is
-/// provided, only sponsors that have at least one fund associated with that
-/// entity are returned, and metrics are computed using only those funds.
 #[get("/sponsors")]
 pub async fn get_sponsors(
+    req: HttpRequest,
     query: web::Query<SponsorFilter>,
+    state: web::Data<AppState>,
 ) -> Result<HttpResponse, AppError> {
+    let user = current_user(&req, &state.db).await?;
     let entity_filter = query.entity.as_deref();
 
-    let result: Vec<SponsorWithMetrics> = SPONSORS
+    let sponsors: Vec<Sponsor> = state
+        .db
+        .select(
+            "sponsors",
+            &format!("organization_id=eq.{}", user.organization_id),
+        )
+        .await?;
+
+    // Pull all funds for the org once and bucket them per sponsor.
+    let funds_filter = match entity_filter {
+        Some(eid) => format!("organization_id=eq.{}&entity_id=eq.{eid}", user.organization_id),
+        None => format!("organization_id=eq.{}", user.organization_id),
+    };
+    let funds: Vec<Fund> = state.db.select("funds", &funds_filter).await?;
+
+    let result: Vec<SponsorWithMetrics> = sponsors
         .iter()
         .filter_map(|sponsor| {
-            // Collect qualifying funds for this sponsor.
-            let funds: Vec<&Fund> = FUNDS
+            let qualifying: Vec<&Fund> = funds
                 .iter()
-                .filter(|f| {
-                    f.sponsor_id == sponsor.id
-                        && entity_filter.map_or(true, |eid| f.entity_id == eid)
-                })
+                .filter(|f| f.sponsor_id == sponsor.id)
                 .collect();
-
-            // Exclude sponsors with no qualifying funds when filtering by entity.
-            if entity_filter.is_some() && funds.is_empty() {
+            if entity_filter.is_some() && qualifying.is_empty() {
                 return None;
             }
-
-            Some(aggregate(sponsor, &funds))
+            Some(aggregate(sponsor, &qualifying))
         })
         .collect();
 
     Ok(HttpResponse::Ok()
-        .insert_header(("Cache-Control", "public, max-age=60, stale-while-revalidate=300"))
+        .insert_header(("Cache-Control", "no-store"))
         .json(result))
 }
 
 /// `GET /api/v1/sponsors/{id}`
-///
-/// Returns a single sponsor with aggregated portfolio metrics (across all
-/// entities).  Returns 404 when the sponsor ID does not exist.
 #[get("/sponsors/{id}")]
 pub async fn get_sponsor_by_id(
+    req: HttpRequest,
     path: web::Path<String>,
+    state: web::Data<AppState>,
 ) -> Result<HttpResponse, AppError> {
+    let user = current_user(&req, &state.db).await?;
     let sponsor_id = path.into_inner();
 
-    let sponsor = SPONSORS
-        .iter()
-        .find(|s| s.id == sponsor_id)
-        .ok_or_else(|| AppError::NotFound(format!("Sponsor '{}' not found.", sponsor_id)))?;
+    let sponsor: Sponsor = state
+        .db
+        .select_one(
+            "sponsors",
+            &format!(
+                "id=eq.{sponsor_id}&organization_id=eq.{}",
+                user.organization_id
+            ),
+        )
+        .await?;
 
-    let funds: Vec<&Fund> = FUNDS.iter().filter(|f| f.sponsor_id == sponsor_id).collect();
-    let result = aggregate(sponsor, &funds);
+    let funds: Vec<Fund> = state
+        .db
+        .select(
+            "funds",
+            &format!(
+                "sponsor_id=eq.{sponsor_id}&organization_id=eq.{}",
+                user.organization_id
+            ),
+        )
+        .await?;
+
+    let qualifying: Vec<&Fund> = funds.iter().collect();
+    let result = aggregate(&sponsor, &qualifying);
 
     Ok(HttpResponse::Ok()
-        .insert_header(("Cache-Control", "public, max-age=60, stale-while-revalidate=300"))
+        .insert_header(("Cache-Control", "no-store"))
         .json(result))
 }
 
 /// `GET /api/v1/funds?entity={id}&sponsor={id}`
-///
-/// Returns all funds, optionally filtered by entity ID and/or sponsor ID.
-/// Filters are applied with AND semantics when both are present.
 #[get("/funds")]
 pub async fn get_funds(
+    req: HttpRequest,
     query: web::Query<FundFilter>,
+    state: web::Data<AppState>,
 ) -> Result<HttpResponse, AppError> {
-    let entity_filter = query.entity.as_deref();
-    let sponsor_filter = query.sponsor.as_deref();
+    let user = current_user(&req, &state.db).await?;
 
-    let funds: Vec<&Fund> = FUNDS
-        .iter()
-        .filter(|f| {
-            entity_filter.map_or(true, |eid| f.entity_id == eid)
-                && sponsor_filter.map_or(true, |sid| f.sponsor_id == sid)
-        })
-        .collect();
+    let mut filter = format!("organization_id=eq.{}", user.organization_id);
+    if let Some(eid) = query.entity.as_deref() {
+        filter.push_str(&format!("&entity_id=eq.{eid}"));
+    }
+    if let Some(sid) = query.sponsor.as_deref() {
+        filter.push_str(&format!("&sponsor_id=eq.{sid}"));
+    }
 
+    let funds: Vec<Fund> = state.db.select("funds", &filter).await?;
     Ok(HttpResponse::Ok()
-        .insert_header(("Cache-Control", "public, max-age=60, stale-while-revalidate=300"))
+        .insert_header(("Cache-Control", "no-store"))
         .json(funds))
 }
 
 /// `GET /api/v1/funds/{id}`
-///
-/// Returns the full fund detail record, including the embedded `companies`,
-/// `nav_history`, and `cashflows` arrays.  Returns 404 when the fund ID does
-/// not exist.
 #[get("/funds/{id}")]
 pub async fn get_fund_by_id(
+    req: HttpRequest,
     path: web::Path<String>,
+    state: web::Data<AppState>,
 ) -> Result<HttpResponse, AppError> {
+    let user = current_user(&req, &state.db).await?;
     let fund_id = path.into_inner();
 
-    let fund = FUNDS
-        .iter()
-        .find(|f| f.id == fund_id)
-        .ok_or_else(|| AppError::NotFound(format!("Fund '{}' not found.", fund_id)))?;
+    let fund: Fund = state
+        .db
+        .select_one(
+            "funds",
+            &format!(
+                "id=eq.{fund_id}&organization_id=eq.{}",
+                user.organization_id
+            ),
+        )
+        .await?;
 
     Ok(HttpResponse::Ok()
-        .insert_header(("Cache-Control", "public, max-age=60, stale-while-revalidate=300"))
+        .insert_header(("Cache-Control", "no-store"))
         .json(fund))
+}
+
+// ---------------------------------------------------------------------------
+// Write handlers
+// ---------------------------------------------------------------------------
+
+const NAME_MAX: usize = 200;
+
+fn is_valid_initials(s: &str) -> bool {
+    let trimmed_len = s.trim().chars().count();
+    (1..=4).contains(&trimmed_len)
+        && s.chars().all(|c| c.is_alphanumeric() || c.is_whitespace())
+}
+
+fn is_valid_color(s: &str) -> bool {
+    if !s.starts_with('#') {
+        return false;
+    }
+    let hex = &s[1..];
+    matches!(hex.len(), 3 | 6) && hex.chars().all(|c| c.is_ascii_hexdigit())
+}
+
+/// `POST /api/v1/sponsors`
+#[post("/sponsors")]
+pub async fn create_sponsor(
+    req: HttpRequest,
+    body: web::Json<CreateSponsorPayload>,
+    state: web::Data<AppState>,
+) -> Result<HttpResponse, AppError> {
+    let user = current_user(&req, &state.db).await?;
+
+    let name = body.name.trim().to_string();
+    let initials = body.initials.trim().to_uppercase();
+    let country = body.country.trim().to_string();
+    let color = body.color.trim().to_string();
+
+    if name.is_empty() || name.len() > NAME_MAX {
+        return Err(AppError::BadRequest(format!(
+            "name must be 1–{NAME_MAX} characters"
+        )));
+    }
+    if !is_valid_initials(&initials) {
+        return Err(AppError::BadRequest(
+            "initials must be 1–4 alphanumeric characters".to_string(),
+        ));
+    }
+    if country.len() > NAME_MAX {
+        return Err(AppError::BadRequest(format!(
+            "country must be at most {NAME_MAX} characters"
+        )));
+    }
+    if !is_valid_color(&color) {
+        return Err(AppError::BadRequest(
+            "color must be a hex string like #8B7BD8 or #ABC".to_string(),
+        ));
+    }
+
+    let id = format!("s-{}", uuid::Uuid::new_v4().simple());
+
+    let sponsor: Sponsor = state
+        .db
+        .insert(
+            "sponsors",
+            &NewSponsor {
+                id: &id,
+                organization_id: &user.organization_id,
+                name: &name,
+                initials: &initials,
+                country: &country,
+                color: &color,
+            },
+        )
+        .await?;
+
+    Ok(HttpResponse::Created().json(sponsor))
+}
+
+/// `DELETE /api/v1/sponsors/{id}`
+#[delete("/sponsors/{id}")]
+pub async fn delete_sponsor(
+    req: HttpRequest,
+    path: web::Path<String>,
+    state: web::Data<AppState>,
+) -> Result<HttpResponse, AppError> {
+    let user = current_user(&req, &state.db).await?;
+    let sponsor_id = path.into_inner();
+
+    let attached = state
+        .db
+        .count(
+            "funds",
+            &format!(
+                "sponsor_id=eq.{sponsor_id}&organization_id=eq.{}",
+                user.organization_id
+            ),
+        )
+        .await?;
+    if attached > 0 {
+        return Err(AppError::Conflict(format!(
+            "Cannot delete sponsor '{sponsor_id}': {attached} fund(s) still reference it."
+        )));
+    }
+
+    state
+        .db
+        .delete(
+            "sponsors",
+            &format!(
+                "id=eq.{sponsor_id}&organization_id=eq.{}",
+                user.organization_id
+            ),
+        )
+        .await?;
+
+    Ok(HttpResponse::NoContent().finish())
 }

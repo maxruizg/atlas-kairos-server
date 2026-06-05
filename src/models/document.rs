@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Document {
     pub id: String,
+    #[serde(default)]
+    pub organization_id: String,
     pub name: String,
     pub doc_type: String,
     pub fund: String,
